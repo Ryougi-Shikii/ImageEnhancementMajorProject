@@ -1,39 +1,100 @@
-import torch
-import cv2
 import os
-from retinexformer_arch import RetinexFormer
+import cv2
+import torch
+import numpy as np
+from RetinexFormer_arch import RetinexFormer
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# ---------------- CONFIG ---------------- #
+MODEL_PATH = "retinex.pth"      # path to your trained model
+INPUT_DIR = "input_images"      # folder with input images
+OUTPUT_DIR = "results"          # folder to save outputs
 
-# load model
-model = RetinexFormer(n_feat=16, stage=1)
-model.load_state_dict(torch.load("retinex.pth", map_location=device))
-model.to(device)
-model.eval()
+PATCH_SIZE = 128
+STRIDE = 64   # overlap (important)
 
-input_dir = "input_images"
-output_dir = "results"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-os.makedirs(output_dir, exist_ok=True)
 
-for img_name in os.listdir(input_dir):
-    path = os.path.join(input_dir, img_name)
+# ---------------- LOAD MODEL ---------------- #
+def load_model():
+    model = RetinexFormer(n_feat=16, stage=1)  # match your training config
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+    model.to(DEVICE)
+    model.eval()
+    return model
 
-    img = cv2.imread(path)
+
+# ---------------- PATCH INFERENCE ---------------- #
+def enhance_image(model, img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.resize(img, (128,128))
+    h, w, _ = img.shape
 
-    tensor = torch.from_numpy(img).float().permute(2,0,1)/255.0
-    tensor = tensor.unsqueeze(0).to(device)
+    img = img.astype(np.float32) / 255.0
 
-    with torch.no_grad():
-        out = model(tensor)
+    output = np.zeros((h, w, 3), dtype=np.float32)
+    weight = np.zeros((h, w, 3), dtype=np.float32)
 
-    out = out.squeeze().permute(1,2,0).cpu().numpy()
-    out = (out * 255).clip(0,255).astype("uint8")
+    for i in range(0, h, STRIDE):
+        for j in range(0, w, STRIDE):
 
-    out = cv2.cvtColor(out, cv2.COLOR_RGB2BGR)
+            patch = img[i:i+PATCH_SIZE, j:j+PATCH_SIZE]
+            ph, pw = patch.shape[:2]
 
-    cv2.imwrite(os.path.join(output_dir, img_name), out)
+            # pad if needed
+            if ph < PATCH_SIZE or pw < PATCH_SIZE:
+                pad = np.zeros((PATCH_SIZE, PATCH_SIZE, 3), dtype=np.float32)
+                pad[:ph, :pw] = patch
+                patch = pad
 
-print("Done. Check results/")
+            # to tensor
+            patch_tensor = torch.from_numpy(patch).permute(2,0,1).unsqueeze(0).to(DEVICE)
+
+            with torch.no_grad():
+                out = model(patch_tensor)
+
+            out = out.squeeze().permute(1,2,0).cpu().numpy()
+            out = np.clip(out, 0, 1)
+
+            # remove padding
+            out = out[:ph, :pw]
+
+            # add to output with weight
+            output[i:i+ph, j:j+pw] += out
+            weight[i:i+ph, j:j+pw] += 1.0
+
+    # normalize overlapping areas
+    output = output / weight
+    output = np.clip(output, 0, 1)
+
+    output = (output * 255).astype(np.uint8)
+    output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
+
+    return output
+
+
+# ---------------- MAIN ---------------- #
+def main():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    model = load_model()
+
+    for img_name in os.listdir(INPUT_DIR):
+        input_path = os.path.join(INPUT_DIR, img_name)
+        output_path = os.path.join(OUTPUT_DIR, img_name)
+
+        img = cv2.imread(input_path)
+
+        if img is None:
+            print(f"Skipping {img_name}")
+            continue
+
+        enhanced = enhance_image(model, img)
+
+        cv2.imwrite(output_path, enhanced)
+        print(f"Processed: {img_name}")
+
+    print("Done. Check results folder.")
+
+
+if __name__ == "__main__":
+    main()
