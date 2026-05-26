@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LowLight — Image Enhancer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --border: #222;
+    --border-light: #2a2a2a;
+    --text: #e8e8e8;
+    --text-dim: #999;
+    --text-dimmer: #666;
+    --accent: #c8f542;
+    --accent-dim: #a0c435;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,13,13,0.92);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-logo {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 0;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 0.4rem 0.9rem;
+    letter-spacing: 0.06em;
+    transition: color 0.15s;
+    text-transform: uppercase;
+  }
+
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-status {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-dimmer);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    min-height: 100vh;
+    padding: 52px 0 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+    width: 100%;
+  }
+
+  /* ── HERO ── */
+  #hero {
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 80% 50%, rgba(200, 245, 66, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.5s ease 0.1s forwards;
+  }
+
+  .hero-title {
+    font-family: var(--mono);
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.5s ease 0.2s forwards;
+  }
+
+  .hero-title span { color: var(--accent); }
+
+  .hero-desc {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    max-width: 440px;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 0.5s ease 0.3s forwards;
+  }
+
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--accent);
+    color: #0d0d0d;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.75rem 1.5rem;
+    transition: background 0.15s, transform 0.1s;
+    opacity: 0;
+    animation: fadeUp 0.5s ease 0.4s forwards;
+  }
+
+  .hero-cta:hover { background: var(--accent-dim); transform: translateY(-1px); }
+  .hero-cta:active { transform: translateY(0); }
+
+  /* ── UPLOAD SECTION ── */
+  #upload { border-bottom: 1px solid var(--border); }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dimmer);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 2.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  /* URL input */
+  .url-row {
+    display: flex;
+    gap: 0;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-light);
+  }
+
+  .url-prefix {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-dimmer);
+    background: #111;
+    padding: 0.8rem 1rem;
+    border-right: 1px solid var(--border-light);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--surface);
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.8rem 1rem;
+    min-width: 0;
+  }
+
+  .url-input::placeholder { color: var(--text-dimmer); }
+
+  .url-input:focus { background: #161616; }
+
+  /* Drop zone */
+  .dropzone {
+    border: 1px dashed var(--border-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3.5rem 2rem;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    text-align: center;
+    min-height: 180px;
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: rgba(200, 245, 66, 0.03);
+  }
+
+  .dropzone.has-image {
+    padding: 0;
+    border-style: solid;
+    border-color: var(--accent);
+  }
+
+  .dropzone.has-image:hover { background: transparent; }
+
+  .dropzone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+  }
+
+  .drop-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    pointer-events: none;
+  }
+
+  .drop-icon {
+    width: 36px;
+    height: 36px;
+    color: var(--text-dimmer);
+  }
+
+  .drop-text {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  .drop-sub {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dimmer);
+    letter-spacing: 0.06em;
+  }
+
+  .drop-preview {
+    display: none;
+    width: 100%;
+    position: relative;
+  }
+
+  .drop-preview img {
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    display: block;
+    background: #0a0a0a;
+  }
+
+  .drop-preview-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(13,13,13,0.85);
+    backdrop-filter: blur(6px);
+    padding: 0.5rem 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .drop-preview-name {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+  }
+
+  .drop-preview-tag {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dropzone.has-image .drop-preview { display: block; }
+  .dropzone.has-image .drop-placeholder { display: none; }
+
+  /* Enhance button */
+  .enhance-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.9rem;
+    background: var(--accent);
+    color: #0d0d0d;
+    border: none;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .enhance-btn:hover:not(:disabled) { background: var(--accent-dim); }
+  .enhance-btn:active:not(:disabled) { transform: scaleY(0.98); }
+  .enhance-btn:disabled { background: #2a2a2a; color: var(--text-dimmer); cursor: not-allowed; }
+
+  /* Progress */
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    margin-top: 0.75rem;
+    display: none;
+    overflow: hidden;
+  }
+
+  .progress-bar.active { display: block; }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.4s ease;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
+
+  .status-text {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-dimmer);
+    margin-top: 0.5rem;
+    letter-spacing: 0.05em;
+    min-height: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-text.error { color: #e05555; }
+  .status-text.success { color: var(--accent); }
+
+  /* ── RESULT SECTION ── */
+  #result { border-bottom: 1px solid var(--border); display: none; }
+  #result.visible { display: flex; }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+
+  .compare-panel {
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .compare-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: #111;
+  }
+
+  .compare-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+  }
+
+  .compare-label.enhanced { color: var(--accent); }
+
+  .compare-img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: #0a0a0a;
+    flex: 1;
+  }
+
+  .compare-img-wrap img {
+    max-width: 100%;
+    max-height: 500px;
+    width: auto;
+    height: auto;
+    display: block;
+    object-fit: contain;
+  }
+
+  /* Download row */
+  .download-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.65rem 1.2rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .dl-btn:hover {
+    background: var(--accent);
+    color: #0d0d0d;
+  }
+
+  .reset-btn {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-dimmer);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.65rem 0.5rem;
+    transition: color 0.15s;
+  }
+
+  .reset-btn:hover { color: var(--text); }
+
+  /* meta info */
+  .meta-row {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .meta-key {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-dimmer);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .meta-val {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text);
+  }
+
+  /* ── ABOUT ── */
+  #about { min-height: auto; }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+
+  .about-card {
+    background: var(--surface);
+    padding: 1.5rem;
+  }
+
+  .about-num {
+    font-family: var(--mono);
+    font-size: 1.8rem;
+    color: var(--accent);
+    font-weight: 300;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .about-name {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dimmer);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .about-desc {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  footer span {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dimmer);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .about-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+    .meta-row { flex-wrap: wrap; gap: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="nav-logo">LowLight//</span>
+  <ul class="nav-links">
+    <li><a href="#hero">Home</a></li>
+    <li><a href="#upload">Enhance</a></li>
+    <li><a href="#result">Result</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+  <span class="nav-status" id="nav-status">RetinexFormer · v1</span>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="inner">
+    <div class="hero-label">Low-Light Image Enhancement</div>
+    <h1 class="hero-title">Illuminate<br>the <span>unseen.</span></h1>
+    <p class="hero-desc">RetinexFormer-based neural network. Upload a dark image, run inference via Colab backend, download the enhanced result.</p>
+    <a href="#upload" class="hero-cta">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Image
+    </a>
+  </div>
+</section>
+
+<!-- UPLOAD -->
+<section id="upload">
+  <div class="inner">
+    <div class="section-label">01 — Configure & Upload</div>
+
+    <!-- URL row -->
+    <div class="url-row">
+      <div class="url-prefix">ngrok URL</div>
+      <input
+        class="url-input"
+        id="api-url"
+        type="text"
+        placeholder="https://xxxx-xx-xx.ngrok-free.app/enhance"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <!-- Drop zone -->
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp">
+      <div class="drop-placeholder">
+        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <div class="drop-text" id="drop-text">Drop image here or click to browse</div>
+        <div class="drop-sub">JPG · PNG · WEBP</div>
+      </div>
+      <div class="drop-preview" id="drop-preview">
+        <img id="preview-img" src="" alt="Preview">
+        <div class="drop-preview-bar">
+          <span class="drop-preview-name" id="preview-name"></span>
+          <span class="drop-preview-tag">Click to change</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="enhance-btn" id="enhance-btn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Enhance Image
+    </button>
+
+    <div class="progress-bar" id="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <div class="status-text" id="status-text"></div>
+  </div>
+</section>
+
+<!-- RESULT -->
+<section id="result">
+  <div class="inner">
+    <div class="section-label">02 — Comparison</div>
+
+    <div class="meta-row" id="meta-row"></div>
+
+    <div class="compare-grid">
+      <div class="compare-panel">
+        <div class="compare-header">
+          <span class="compare-label">Original</span>
+        </div>
+        <div class="compare-img-wrap">
+          <img id="original-img" src="" alt="Original">
+        </div>
+      </div>
+      <div class="compare-panel">
+        <div class="compare-header">
+          <span class="compare-label enhanced">Enhanced</span>
+        </div>
+        <div class="compare-img-wrap">
+          <img id="enhanced-img" src="" alt="Enhanced">
+        </div>
+      </div>
+    </div>
+
+    <div class="download-row">
+      <a class="dl-btn" id="dl-btn" download="enhanced.jpg">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Enhanced
+      </a>
+      <button class="reset-btn" id="reset-btn">← New Image</button>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="inner">
+    <div class="section-label">03 — About the Model</div>
+    <div class="about-grid">
+      <div class="about-card">
+        <div class="about-num">128px</div>
+        <div class="about-name">Patch Size</div>
+        <div class="about-desc">Inference runs on 128×128 patches with 64px overlap, stitched back into the full image.</div>
+      </div>
+      <div class="about-card">
+        <div class="about-num">RetinexFormer</div>
+        <div class="about-name">Architecture</div>
+        <div class="about-desc">Transformer-based model using Retinex theory. Estimates illumination and recovers reflectance.</div>
+      </div>
+      <div class="about-card">
+        <div class="about-num">LOL</div>
+        <div class="about-name">Dataset</div>
+        <div class="about-desc">Trained on the LOL (Low-Light) dataset of paired low/normal-light image pairs.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>IILM University · Major Project 2026</span>
+  <span>RetinexFormer · Low-Light Enhancement</span>
+</footer>
+
+<script>
+  const fileInput   = document.getElementById('file-input');
+  const dropzone    = document.getElementById('dropzone');
+  const dropText    = document.getElementById('drop-text');
+  const apiUrl      = document.getElementById('api-url');
+  const enhanceBtn  = document.getElementById('enhance-btn');
+  const progressBar = document.getElementById('progress-bar');
+  const progressFill= document.getElementById('progress-fill');
+  const statusText  = document.getElementById('status-text');
+  const resultSec   = document.getElementById('result');
+  const originalImg = document.getElementById('original-img');
+  const enhancedImg = document.getElementById('enhanced-img');
+  const dlBtn       = document.getElementById('dl-btn');
+  const resetBtn    = document.getElementById('reset-btn');
+  const metaRow     = document.getElementById('meta-row');
+  const navStatus   = document.getElementById('nav-status');
+
+  let selectedFile  = null;
+  let originalB64   = null;
+
+  // ── drag & drop ──
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file) {
+    selectedFile = file;
+    setStatus('');
+
+    // show preview immediately
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('preview-name').textContent = file.name + '  ·  ' + (file.size / 1024).toFixed(0) + ' KB';
+      dropzone.classList.add('has-image');
+    };
+    reader.readAsDataURL(file);
+
+    checkReady();
+  }
+
+  function checkReady() {
+    enhanceBtn.disabled = !(selectedFile && apiUrl.value.trim());
+  }
+
+  apiUrl.addEventListener('input', checkReady);
+
+  // ── enhance ──
+  enhanceBtn.addEventListener('click', async () => {
+    if (!selectedFile || !apiUrl.value.trim()) return;
+
+    const url = apiUrl.value.trim();
+
+    // reset result
+    resultSec.classList.remove('visible');
+    setStatus('Reading image…');
+    progressBar.classList.add('active');
+    progressFill.style.width = '20%';
+    enhanceBtn.disabled = true;
+
+    try {
+      // read file → base64
+      originalB64 = await fileToBase64(selectedFile);
+      originalImg.src = originalB64;
+
+      setStatus('Sending to backend…');
+      progressFill.style.width = '50%';
+
+      // strip data URL prefix for API
+      const raw = originalB64.split(',')[1];
+
+      const t0 = Date.now();
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify({ image: raw })
+      });
+
+      progressFill.style.width = '80%';
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Server returned ${resp.status}: ${errText}`);
+      }
+
+      const data = await resp.json();
+
+      if (!data.enhanced_image) throw new Error('Response missing "enhanced_image" field');
+
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      progressFill.style.width = '100%';
+
+      // show result
+      const enhancedSrc = 'data:image/jpeg;base64,' + data.enhanced_image;
+      enhancedImg.src = enhancedSrc;
+      dlBtn.href = enhancedSrc;
+      dlBtn.download = 'enhanced_' + selectedFile.name;
+
+      // meta
+      const img = new Image();
+      img.onload = () => {
+        metaRow.innerHTML = `
+          <div class="meta-item"><span class="meta-key">File</span><span class="meta-val">${selectedFile.name}</span></div>
+          <div class="meta-item"><span class="meta-key">Dimensions</span><span class="meta-val">${img.naturalWidth} × ${img.naturalHeight}px</span></div>
+          <div class="meta-item"><span class="meta-key">Size</span><span class="meta-val">${(selectedFile.size / 1024).toFixed(0)} KB</span></div>
+          <div class="meta-item"><span class="meta-key">Inference Time</span><span class="meta-val">${elapsed}s</span></div>
+        `;
+      };
+      img.src = enhancedSrc;
+
+      resultSec.classList.add('visible');
+      setStatus('Done.', 'success');
+      navStatus.textContent = `Last run · ${elapsed}s`;
+
+      setTimeout(() => {
+        resultSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+
+    } catch (err) {
+      progressFill.style.width = '100%';
+      progressFill.style.background = '#e05555';
+      setStatus(err.message, 'error');
+      console.error(err);
+    } finally {
+      setTimeout(() => {
+        progressBar.classList.remove('active');
+        progressFill.style.width = '0%';
+        progressFill.style.background = 'var(--accent)';
+      }, 600);
+      enhanceBtn.disabled = false;
+      checkReady();
+    }
+  });
+
+  // ── reset ──
+  resetBtn.addEventListener('click', () => {
+    selectedFile = null;
+    originalB64 = null;
+    fileInput.value = '';
+    document.getElementById('preview-img').src = '';
+    document.getElementById('preview-name').textContent = '';
+    dropzone.classList.remove('has-image');
+    setStatus('');
+    resultSec.classList.remove('visible');
+    checkReady();
+    document.getElementById('upload').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // ── utils ──
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setStatus(msg, type = '') {
+    statusText.textContent = msg;
+    statusText.className = 'status-text' + (type ? ' ' + type : '');
+  }
+</script>
+</body>
+</html>
